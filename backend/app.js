@@ -17,4 +17,6 @@ app.get('/', (req, res) => {
     res.json({ status: 'CareCell API is running' });
 })
 
+app.use(require('./middleware/errorHandler'));
+
 module.exports = app;
