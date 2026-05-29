@@ -56,7 +56,7 @@ const register = async (req, res, next) => {
         sendTokenResponse(user, 201, res)
 
     } catch (err) {
-        next(err)   // passes error to errorHandler middleware
+        res.status(500).json({ success: false, message: err.message })
     }
 }
 
@@ -98,7 +98,7 @@ const login = async (req, res, next) => {
         sendTokenResponse(user, 200, res)
 
     } catch (err) {
-        next(err)
+        res.status(500).json({ success: false, message: err.message })
     }
 }
 
@@ -120,7 +120,7 @@ const getMe = async (req, res, next) => {
             }
         })
     } catch (err) {
-        next(err)
+        res.status(500).json({ success: false, message: err.message })
     }
 }
 
