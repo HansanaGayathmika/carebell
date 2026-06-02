@@ -112,7 +112,7 @@ const deletePatient = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'Patient deleted successfully'
+            message: ' Patient deleted successfully'
         })
 
     } catch (err) {
