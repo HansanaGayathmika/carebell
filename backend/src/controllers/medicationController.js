@@ -108,7 +108,7 @@ const updateMedication = async (req, res) => {
         if (!medication) {
             return res.status(404).json({
                 success: false,
-                message: 'Medication not found'
+                message: ' Medication not found'
             })
         }
 
@@ -135,7 +135,7 @@ const deleteMedication = async (req, res) => {
         if (!medication) {
             return res.status(404).json({
                 success: false,
-                message: 'Medication not found'
+                message: ' Medication not found'
             })
         }
 
