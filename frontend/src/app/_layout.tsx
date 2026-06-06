@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { Stack, router } from 'expo-router'
+import { Stack } from 'expo-router'
 import { AuthProvider, useAuth } from '../context/AuthContext'
+import { router } from 'expo-router'
 
 function RootLayoutNav() {
   const { user, loading } = useAuth()
@@ -8,9 +9,9 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading) return
     if (user) {
-      router.replace('/(tabs)')       // logged in → go to dashboard
+      router.replace('/' as any)
     } else {
-      router.replace('/(auth)/login') // not logged in → go to login
+      router.replace('/login' as any)
     }
   }, [user, loading])
 
