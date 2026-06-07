@@ -1,6 +1,33 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Platform } from 'react-native'
 import { authAPI } from '../services/api'
+
+// ── storage helper — uses localStorage on web, AsyncStorage on phone
+const storage = {
+    getItem: async (key: string) => {
+        if (Platform.OS === 'web') {
+            return localStorage.getItem(key)
+        }
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
+        return AsyncStorage.getItem(key)
+    },
+    setItem: async (key: string, value: string) => {
+        if (Platform.OS === 'web') {
+            localStorage.setItem(key, value)
+            return
+        }
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
+        AsyncStorage.setItem(key, value)
+    },
+    removeItem: async (key: string) => {
+        if (Platform.OS === 'web') {
+            localStorage.removeItem(key)
+            return
+        }
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default
+        AsyncStorage.removeItem(key)
+    }
+}
 
 type User = {
     id: string
@@ -24,15 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [token, setToken] = useState<string | null>(null)
     const [loading, setLoading] = useState(true)
 
-    // check if already logged in when app opens
-    useEffect(() => {
-        loadStoredAuth()
-    }, [])
+    useEffect(() => { loadStoredAuth() }, [])
 
     const loadStoredAuth = async () => {
         try {
-            const storedToken = await AsyncStorage.getItem('token')
-            const storedUser = await AsyncStorage.getItem('user')
+            const storedToken = await storage.getItem('token')
+            const storedUser = await storage.getItem('user')
             if (storedToken && storedUser) {
                 setToken(storedToken)
                 setUser(JSON.parse(storedUser))
@@ -47,8 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const register = async (name: string, email: string, password: string) => {
         const res = await authAPI.register({ name, email, password })
         const { token, user } = res.data
-        await AsyncStorage.setItem('token', token)
-        await AsyncStorage.setItem('user', JSON.stringify(user))
+        await storage.setItem('token', token)
+        await storage.setItem('user', JSON.stringify(user))
         setToken(token)
         setUser(user)
     }
@@ -56,15 +80,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const login = async (email: string, password: string) => {
         const res = await authAPI.login({ email, password })
         const { token, user } = res.data
-        await AsyncStorage.setItem('token', token)
-        await AsyncStorage.setItem('user', JSON.stringify(user))
+        await storage.setItem('token', token)
+        await storage.setItem('user', JSON.stringify(user))
         setToken(token)
         setUser(user)
     }
 
     const logout = async () => {
-        await AsyncStorage.removeItem('token')
-        await AsyncStorage.removeItem('user')
+        await storage.removeItem('token')
+        await storage.removeItem('user')
         setToken(null)
         setUser(null)
     }

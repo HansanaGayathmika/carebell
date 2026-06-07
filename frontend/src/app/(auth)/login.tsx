@@ -22,8 +22,10 @@ export default function LoginScreen() {
             await login(email, password)
             router.replace('/(tabs)' as any)
         } catch (err: any) {
-            Alert.alert('Login Failed',
-                err.response?.data?.message || 'Something went wrong')
+            Alert.alert(
+                'Login Failed',
+                err.response?.data?.message || err.message || 'Something went wrong'
+            )
         } finally {
             setLoading(false)
         }
@@ -31,15 +33,12 @@ export default function LoginScreen() {
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
-
-            {/* Logo */}
             <View style={styles.logoBox}>
                 <Text style={styles.logoIcon}>🔔</Text>
                 <Text style={styles.logoText}>CareBell</Text>
                 <Text style={styles.logoSub}>Medicine reminder for your loved ones</Text>
             </View>
 
-            {/* Form */}
             <View style={styles.form}>
                 <Text style={styles.title}>Welcome back</Text>
                 <Text style={styles.subtitle}>Sign in to your account</Text>
@@ -86,7 +85,6 @@ export default function LoginScreen() {
                     </Text>
                 </TouchableOpacity>
             </View>
-
         </ScrollView>
     )
 }
@@ -102,10 +100,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 40,
     },
-    logoIcon: {
-        fontSize: 48,
-        marginBottom: 8,
-    },
+    logoIcon: { fontSize: 48, marginBottom: 8 },
     logoText: {
         fontSize: 28,
         fontWeight: '700',
@@ -161,9 +156,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 4,
     },
-    btnDisabled: {
-        opacity: 0.6,
-    },
+    btnDisabled: { opacity: 0.6 },
     btnText: {
         color: '#fff',
         fontSize: 16,

@@ -9,9 +9,9 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading) return
     if (user) {
-      router.replace('/' as any)
+      router.replace('/(tabs)' as any)
     } else {
-      router.replace('/login' as any)
+      router.replace('/(auth)/login' as any)
     }
   }, [user, loading])
 

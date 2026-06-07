@@ -4,7 +4,14 @@ const cors = require('cors')
 const app = express()
 
 // ── Middleware ──────────────────────────────────────────────
-app.use(cors())
+app.use(cors({
+    origin: [
+        'http://localhost:8081',
+        'http://localhost:19006',
+        'http://192.168.1.162:8081'
+    ],
+    credentials: true
+}))
 app.use(express.json())
 
 // ── Routes ──────────────────────────────────────────────────
