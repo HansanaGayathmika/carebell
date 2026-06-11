@@ -1,22 +1,23 @@
-import { useEffect } from 'react'
-import { Stack } from 'expo-router'
-import { AuthProvider, useAuth } from '../context/AuthContext'
-import { router } from 'expo-router'
+import { useEffect, useRef } from 'react'
+import { Stack, router } from 'expo-router'
+import { AuthProvider } from '../context/AuthContext'
 
-function RootLayoutNav() {
-  const { user, loading } = useAuth()
+export const unstable_settings = {
+  initialRouteName: 'index',
+}
+
+function AppNavigator() {
+  const didSetInitialRoute = useRef(false)
 
   useEffect(() => {
-    if (loading) return
-    if (user) {
-      router.replace('/(tabs)' as any)
-    } else {
-      router.replace('/(auth)/login' as any)
-    }
-  }, [user, loading])
+    if (didSetInitialRoute.current) return
+    didSetInitialRoute.current = true
+    router.replace('/')
+  }, [])
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
     </Stack>
@@ -26,7 +27,7 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <AppNavigator />
     </AuthProvider>
   )
 }
