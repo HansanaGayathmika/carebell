@@ -1,25 +1,8 @@
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
-import { useAuth } from '../context/AuthContext'
 
 export default function WelcomeScreen() {
-  const { user, loading } = useAuth()
-
-  const handleStart = () => {
-    if (user) {
-      router.replace('/(tabs)' as any)
-    } else {
-      router.push('/(auth)/login' as any)
-    }
-  }
-
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#1D9E75" />
-      </View>
-    )
-  }
+  const goToSignUp = () => router.push('/(auth)/register' as any)
 
   return (
     <View style={styles.container}>
@@ -47,14 +30,11 @@ export default function WelcomeScreen() {
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.startBtn} onPress={handleStart}>
+        <TouchableOpacity style={styles.startBtn} onPress={goToSignUp}>
           <Text style={styles.startBtnText}>Start here</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.signUpLink}
-          onPress={() => router.push('/(auth)/register' as any)}
-        >
+        <TouchableOpacity style={styles.signUpLink} onPress={goToSignUp}>
           <Text style={styles.signUpText}>
             New here?{' '}
             <Text style={styles.signUpTextBold}>Sign up</Text>
@@ -66,12 +46,6 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8F7F2',
-  },
   container: {
     flex: 1,
     backgroundColor: '#F8F7F2',
