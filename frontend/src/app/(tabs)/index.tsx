@@ -59,7 +59,14 @@ export default function DashboardScreen() {
     const handleLogout = () => {
         Alert.alert('Logout', 'Are you sure?', [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Logout', style: 'destructive', onPress: logout }
+            {
+                text: 'Logout',
+                style: 'destructive',
+                onPress: async () => {
+                    await logout()
+                    router.replace('/' as any)
+                },
+            },
         ])
     }
 
