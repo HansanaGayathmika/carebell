@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import {
     View, Text, ScrollView, StyleSheet, TouchableOpacity,
-    TextInput, Alert, ActivityIndicator, Modal
+    TextInput, ActivityIndicator, Modal
 } from 'react-native'
-import { medicationAPI } from '../../services/api'
+import { useFocusEffect } from 'expo-router'
+import { medicationAPI, patientAPI } from '../../services/api'
+import { showAlert, showConfirm } from '../../utils/alert'
 
 type Medication = {
     _id: string
@@ -15,33 +17,65 @@ type Medication = {
     active: boolean
 }
 
+type Patient = {
+    _id: string
+    name: string
+    phone: string
+    language: string
+}
+
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function MedicationsScreen() {
     const [medications, setMedications] = useState<Medication[]>([])
+    const [patient, setPatient] = useState<Patient | null>(null)
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
+    const [showPatientModal, setShowPatientModal] = useState(false)
     const [saving, setSaving] = useState(false)
+    const [savingPatient, setSavingPatient] = useState(false)
 
-    // form state
+    // medication form
     const [name, setName] = useState('')
     const [dose, setDose] = useState('')
     const [times, setTimes] = useState('')
     const [notes, setNotes] = useState('')
     const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6])
 
-    const fetchMedications = useCallback(async () => {
+    // patient form
+    const [patientName, setPatientName] = useState('')
+    const [patientPhone, setPatientPhone] = useState('')
+    const [patientLanguage, setPatientLanguage] = useState('english')
+
+    const fetchData = useCallback(async () => {
         try {
-            const res = await medicationAPI.getAll()
-            setMedications(res.data.data)
-        } catch (err: any) {
-            console.log('Fetch meds error:', err.message)
+            const [medsRes, patientRes] = await Promise.allSettled([
+                medicationAPI.getAll(),
+                patientAPI.get(),
+            ])
+
+            if (medsRes.status === 'fulfilled') {
+                setMedications(medsRes.value.data.data || [])
+            } else {
+                console.log('Fetch meds error:', medsRes.reason?.message)
+            }
+
+            if (patientRes.status === 'fulfilled') {
+                setPatient(patientRes.value.data.data)
+            } else {
+                setPatient(null)
+            }
         } finally {
             setLoading(false)
         }
     }, [])
 
-    useEffect(() => { fetchMedications() }, [fetchMedications])
+    useFocusEffect(
+        useCallback(() => {
+            setLoading(true)
+            fetchData()
+        }, [fetchData])
+    )
 
     const toggleDay = (day: number) => {
         setDays(prev =>
@@ -59,55 +93,84 @@ export default function MedicationsScreen() {
         setDays([0, 1, 2, 3, 4, 5, 6])
     }
 
-    const handleAdd = async () => {
-        if (!name || !dose || !times) {
-            Alert.alert('Error', 'Name, dose and time are required')
+    const handleAddPress = () => {
+        setShowModal(true)
+    }
+
+    const handleSavePatient = async () => {
+        if (!patientName.trim() || !patientPhone.trim()) {
+            showAlert('Error', 'Patient name and phone are required')
             return
         }
 
-        // convert "08:00, 20:00" → ["08:00", "20:00"]
-        const timesArray = times.split(',').map(t => t.trim()).filter(t => t)
+        try {
+            setSavingPatient(true)
+            const res = await patientAPI.create({
+                name: patientName.trim(),
+                phone: patientPhone.trim(),
+                language: patientLanguage,
+            })
+            setPatient(res.data.data)
+            setShowPatientModal(false)
+            setPatientName('')
+            setPatientPhone('')
+            setPatientLanguage('english')
+            showAlert('Success', 'Patient profile created. You can now add medications.')
+            setShowModal(true)
+        } catch (err: any) {
+            showAlert('Error', err.response?.data?.message || 'Failed to create patient profile')
+        } finally {
+            setSavingPatient(false)
+        }
+    }
+
+    const handleAdd = async () => {
+        if (!name.trim() || !dose.trim() || !times.trim()) {
+            showAlert('Error', 'Name, dose and time are required')
+            return
+        }
+
+        const timesArray = times.split(',').map(t => t.trim()).filter(Boolean)
+        if (timesArray.length === 0) {
+            showAlert('Error', 'Please enter at least one valid time (e.g. 08:00)')
+            return
+        }
 
         try {
             setSaving(true)
-            await medicationAPI.add({
-                name,
-                dose,
+            const res = await medicationAPI.add({
+                name: name.trim(),
+                dose: dose.trim(),
                 times: timesArray,
                 days,
-                notes
+                notes: notes.trim(),
             })
-            await fetchMedications()
+            setMedications(prev => [res.data.data, ...prev])
             setShowModal(false)
             resetForm()
-            Alert.alert('Success', 'Medication added successfully!')
+            showAlert('Success', 'Medication added successfully!')
         } catch (err: any) {
-            Alert.alert('Error',
-                err.response?.data?.message || 'Failed to add medication')
+            const message = err.response?.data?.message || err.message || 'Failed to add medication'
+            console.log('Add medication error:', message, err.response?.status)
+            showAlert('Error', message)
         } finally {
             setSaving(false)
         }
     }
 
-    const handleDelete = (id: string, name: string) => {
-        Alert.alert(
+    const handleDelete = (id: string, medName: string) => {
+        showConfirm(
             'Delete medication',
-            `Remove ${name}?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await medicationAPI.delete(id)
-                            await fetchMedications()
-                        } catch (err: any) {
-                            Alert.alert('Error', 'Failed to delete medication')
-                        }
-                    }
+            `Remove ${medName}?`,
+            async () => {
+                try {
+                    await medicationAPI.delete(id)
+                    setMedications(prev => prev.filter(m => m._id !== id))
+                } catch {
+                    showAlert('Error', 'Failed to delete medication')
                 }
-            ]
+            },
+            'Delete'
         )
     }
 
@@ -124,7 +187,7 @@ export default function MedicationsScreen() {
                 </View>
                 <TouchableOpacity
                     style={styles.addBtn}
-                    onPress={() => setShowModal(true)}
+                    onPress={handleAddPress}
                 >
                     <Text style={styles.addBtnText}>+ Add</Text>
                 </TouchableOpacity>
@@ -132,6 +195,21 @@ export default function MedicationsScreen() {
 
             {/* ── List ── */}
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+                {!patient && !loading && (
+                    <TouchableOpacity
+                        style={styles.patientBanner}
+                        onPress={() => setShowPatientModal(true)}
+                    >
+                        <Text style={styles.patientBannerIcon}>👵</Text>
+                        <View style={styles.patientBannerText}>
+                            <Text style={styles.patientBannerTitle}>Set up patient profile</Text>
+                            <Text style={styles.patientBannerSub}>
+                                Required for reminder calls — tap to add
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+                )}
+
                 {loading ? (
                     <ActivityIndicator
                         size="large" color="#1D9E75"
@@ -160,7 +238,7 @@ export default function MedicationsScreen() {
 
                                     {/* times */}
                                     <View style={styles.timeRow}>
-                                        {med.times.map((t, i) => (
+                                        {(med.times || []).map((t, i) => (
                                             <View key={i} style={styles.timeBadge}>
                                                 <Text style={styles.timeText}>🕐 {t}</Text>
                                             </View>
@@ -169,19 +247,22 @@ export default function MedicationsScreen() {
 
                                     {/* days */}
                                     <View style={styles.daysRow}>
-                                        {DAY_LABELS.map((label, i) => (
+                                        {DAY_LABELS.map((label, i) => {
+                                            const medDays = med.days || [0, 1, 2, 3, 4, 5, 6]
+                                            return (
                                             <View key={i} style={[
                                                 styles.dayDot,
-                                                med.days.includes(i) && styles.dayDotActive
+                                                medDays.includes(i) && styles.dayDotActive
                                             ]}>
                                                 <Text style={[
                                                     styles.dayDotText,
-                                                    med.days.includes(i) && styles.dayDotTextActive
+                                                    medDays.includes(i) && styles.dayDotTextActive
                                                 ]}>
                                                     {label[0]}
                                                 </Text>
                                             </View>
-                                        ))}
+                                            )
+                                        })}
                                     </View>
 
                                     {med.notes ? (
@@ -304,6 +385,77 @@ export default function MedicationsScreen() {
                 </View>
             </Modal>
 
+            {/* Patient setup modal */}
+            <Modal
+                visible={showPatientModal}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setShowPatientModal(false)}
+            >
+                <View style={styles.modal}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity onPress={() => setShowPatientModal(false)}>
+                            <Text style={styles.cancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.modalTitle}>Patient Profile</Text>
+                        <TouchableOpacity onPress={handleSavePatient} disabled={savingPatient}>
+                            {savingPatient
+                                ? <ActivityIndicator color="#1D9E75" />
+                                : <Text style={styles.saveText}>Save</Text>
+                            }
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView style={styles.modalBody}>
+                        <Text style={styles.fieldHint}>
+                            Add your loved one's details before adding medications.
+                        </Text>
+
+                        <Text style={styles.fieldLabel}>Patient name *</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="e.g. Sarah Chen"
+                            placeholderTextColor="#999"
+                            value={patientName}
+                            onChangeText={setPatientName}
+                        />
+
+                        <Text style={styles.fieldLabel}>Phone number *</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="e.g. 0771234567"
+                            placeholderTextColor="#999"
+                            value={patientPhone}
+                            onChangeText={setPatientPhone}
+                            keyboardType="phone-pad"
+                        />
+
+                        <Text style={styles.fieldLabel}>Language</Text>
+                        <View style={styles.daysSelector}>
+                            {['english', 'sinhala', 'tamil'].map(lang => (
+                                <TouchableOpacity
+                                    key={lang}
+                                    style={[
+                                        styles.daySelectorBtn,
+                                        patientLanguage === lang && styles.daySelectorBtnActive,
+                                    ]}
+                                    onPress={() => setPatientLanguage(lang)}
+                                >
+                                    <Text style={[
+                                        styles.daySelectorText,
+                                        patientLanguage === lang && styles.daySelectorTextActive,
+                                    ]}>
+                                        {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View style={{ height: 40 }} />
+                    </ScrollView>
+                </View>
+            </Modal>
+
         </View>
     )
 }
@@ -347,6 +499,29 @@ const styles = StyleSheet.create({
     list: {
         flex: 1,
         padding: 16,
+    },
+    patientBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF7ED',
+        borderRadius: 14,
+        padding: 16,
+        marginBottom: 16,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: '#FED7AA',
+    },
+    patientBannerIcon: { fontSize: 28 },
+    patientBannerText: { flex: 1 },
+    patientBannerTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#1A1A18',
+        marginBottom: 2,
+    },
+    patientBannerSub: {
+        fontSize: 13,
+        color: '#888',
     },
     emptyBox: {
         alignItems: 'center',
