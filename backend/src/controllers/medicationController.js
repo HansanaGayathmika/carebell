@@ -17,18 +17,12 @@ const addMedication = async (req, res) => {
             })
         }
 
-        // get the patient belonging to this user
+        // get the patient belonging to this user (optional — meds can exist before profile setup)
         const patient = await Patient.findOne({ user: req.user.id })
-        if (!patient) {
-            return res.status(404).json({
-                success: false,
-                message: 'Please create a patient profile first'
-            })
-        }
 
         const medication = await Medication.create({
             user: req.user.id,
-            patient: patient._id,
+            ...(patient && { patient: patient._id }),
             name,
             dose,
             times,
